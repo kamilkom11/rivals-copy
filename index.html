@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEON DRIFT — Rift Runner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@400;600;800&display=swap');
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050816;color:#fff;font-family:Inter,system-ui,sans-serif}canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none;padding:24px;display:flex;flex-direction:column;justify-content:space-between}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.brand{font:800 15px Orbitron;letter-spacing:.22em;color:#9efcff;text-shadow:0 0 18px #00d9ff}.stats{display:flex;gap:10px}.stat{background:#071329b8;border:1px solid #35d9ff55;border-radius:12px;padding:10px 14px;min-width:95px;backdrop-filter:blur(10px)}.stat small{display:block;color:#87a8c7;font-size:9px;letter-spacing:.18em}.stat b{font:700 19px Orbitron}
+.bottom{display:flex;justify-content:space-between;align-items:end;color:#9bb3ca;font-size:11px;letter-spacing:.1em}.keys{line-height:1.9}
+#overlay{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at center,#07162c99,#02040de8);z-index:5}
+.panel{width:min(520px,calc(100vw - 32px));padding:38px;border:1px solid #48e8ff66;border-radius:24px;background:linear-gradient(145deg,#0b1b35ed,#080c1bf2);box-shadow:0 0 80px #00bfff22;text-align:center}
+h1{font:900 clamp(34px,7vw,58px)/.95 Orbitron;margin:12px 0;color:#fff;letter-spacing:-.06em}h1 span{color:#53f3ff;text-shadow:0 0 25px #00d9ff}
+.kicker{font:600 10px Orbitron;letter-spacing:.3em;color:#76dce9}.desc{color:#a9bfd4;line-height:1.65;font-size:14px;margin:20px auto;max-width:390px}
+button{pointer-events:auto;border:0;border-radius:999px;padding:16px 30px;background:linear-gradient(90deg,#00c8ff,#7b6cff);color:#00101c;font:800 12px Orbitron;letter-spacing:.15em;cursor:pointer;box-shadow:0 0 30px #00c8ff55}button:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.hint{font-size:10px;color:#7894ad;margin-top:18px;letter-spacing:.08em}
+#mobile{position:fixed;bottom:22px;left:0;right:0;display:none;justify-content:space-between;padding:0 22px;pointer-events:none}
+.pad{display:flex;gap:10px}.touch{pointer-events:auto;width:58px;height:58px;border-radius:18px;border:1px solid #7ceeff66;background:#071a2dbb;color:#c9fbff;font-size:22px}
+@media(max-width:700px){#hud{padding:14px}.brand{font-size:11px}.stat{min-width:70px;padding:8px}.stat b{font-size:15px}.bottom{font-size:9px}.keys{display:none}#mobile{display:flex}.panel{padding:28px 22px}}
+</style>
+</head>
+<body>
+<div id="hud"><div class="top"><div class="brand">✦ RIFT RUNNER</div><div class="stats"><div class="stat"><small>DISTANCE</small><b id="distance">0000</b></div><div class="stat"><small>SHARDS</small><b id="shards">0</b></div><div class="stat"><small>BEST</small><b id="best">0000</b></div></div></div><div class="bottom"><div class="keys">← → / A D &nbsp; STEER<br>↑ / W &nbsp; BOOST &nbsp; • &nbsp; SPACE &nbsp; PHASE</div><div>SECTOR <span id="sector">01</span> &nbsp; // &nbsp; SURVIVE THE RIFT</div></div></div>
+<div id="mobile"><div class="pad"><button class="touch" data-key="ArrowLeft">←</button><button class="touch" data-key="ArrowRight">→</button></div><div class="pad"><button class="touch" data-key="Space">✧</button><button class="touch" data-key="ArrowUp">↑</button></div></div>
+<div id="overlay"><div class="panel"><div class="kicker">AN ARCADE FLIGHT THROUGH THE UNKNOWN</div><h1>RIFT<br><span>RUNNER</span></h1><p class="desc" id="message">The rift is collapsing. Pilot your neon hoverbike through an endless alien megacity, dodge the gates, and collect energy shards. How far can you go?</p><button id="start">ENTER THE RIFT</button><div class="hint">WASD / ARROWS TO MOVE &nbsp; • &nbsp; SPACE TO PHASE THROUGH DANGER</div></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x050816);scene.fog=new THREE.FogExp2(0x050816,.018);
+const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,240);camera.position.set(0,5.5,11);camera.lookAt(0,1,-10);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0x8deaff,0x10102c,1.8));const key=new THREE.DirectionalLight(0x9beeff,2.2);key.position.set(-5,10,5);scene.add(key);
+const mat=(c,e=0)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:e,metalness:.55,roughness:.28});
+const cyan=mat(0x13dfff,2.2),pink=mat(0xff3cbd,1.8),gold=mat(0xffd35a,1.7),dark=mat(0x101d38,.2),white=mat(0xc7faff,1);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,240),mat(0x080f24,.2));floor.rotation.x=-Math.PI/2;floor.position.set(0,-.25,-85);scene.add(floor);
+const grid=new THREE.GridHelper(200,80,0x13a9d0,0x153354);grid.position.set(0,-.22,-85);scene.add(grid);
+const bike=new THREE.Group();scene.add(bike);
+const body=new THREE.Mesh(new THREE.BoxGeometry(1.05,.42,2.1),mat(0x142b48,.6));body.position.y=.9;bike.add(body);
+const nose=new THREE.Mesh(new THREE.ConeGeometry(.55,1.25,4),cyan);nose.rotation.x=-Math.PI/2;nose.rotation.z=Math.PI/4;nose.position.set(0,1,-1.25);bike.add(nose);
+const cockpit=new THREE.Mesh(new THREE.SphereGeometry(.42,16,12),mat(0x62dfff,1.2));cockpit.scale.set(1,.45,1.15);cockpit.position.set(0,1.25,-.15);bike.add(cockpit);
+for(const x of [-.62,.62]){const wing=new THREE.Mesh(new THREE.BoxGeometry(.16,.13,1.5),pink);wing.position.set(x,.83,.1);bike.add(wing);const glow=new THREE.PointLight(x<0?0xff39c9:0x19dfff,2,5);glow.position.set(x,.7,.2);bike.add(glow)}
+const trail=new THREE.Mesh(new THREE.ConeGeometry(.25,1.8,12),cyan);trail.rotation.x=Math.PI/2;trail.position.set(0,.8,1.6);bike.add(trail);
+const stars=new THREE.Group();for(let i=0;i<500;i++){const s=new THREE.Mesh(new THREE.SphereGeometry(Math.random()*.035+.012,5,5),i%3?white:pink);s.position.set((Math.random()-.5)*100,Math.random()*35-3,-Math.random()*210);stars.add(s)}scene.add(stars);
+const buildings=new THREE.Group();scene.add(buildings);for(let z=0;z<35;z++)for(const side of [-1,1]){const h=4+Math.random()*18,w=2+Math.random()*5;const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,3+Math.random()*5),mat(0x101c39,.3));b.position.set(side*(10+Math.random()*20),h/2-0.2,-z*7-8);buildings.add(b);for(let y=1;y<h-1;y+=2){const win=new THREE.Mesh(new THREE.BoxGeometry(.06,.18,w*.62),Math.random()>.5?cyan:pink);win.position.set(b.position.x-side*(w/2+.04),y,b.position.z);buildings.add(win)}}
+const obstacles=[],collectibles=[];let running=false,score=0,shards=0,speed=.55,spawn=0,phase=0,phaseTime=0,last=0,best=Number(localStorage.getItem('riftBest')||0);document.querySelector('#best').textContent=String(best).padStart(4,'0');
+const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault()});addEventListener('keyup',e=>keys[e.code]=false);
+document.querySelectorAll('.touch').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});for(const ev of ['pointerup','pointercancel','pointerleave'])b.addEventListener(ev,()=>keys[k]=false)});
+function gate(z){const g=new THREE.Group();g.position.z=z;const lane=(Math.random()*3|0)-1;const hole=lane*3.3;for(let x=-1;x<=1;x++){if(x===lane)continue;const block=new THREE.Mesh(new THREE.BoxGeometry(2.7,2.8,1),x%2?pink:cyan);block.position.set(x*3.3,1.2,0);g.add(block);const edge=new THREE.Mesh(new THREE.BoxGeometry(2.9,.12,1.15),white);edge.position.set(x*3.3,2.65,0);g.add(edge)}g.userData={type:'gate',lane};scene.add(g);obstacles.push(g)}
+function shard(z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.48),gold);m.position.set((Math.random()*3|0-1)*3.3,1.3,z);m.userData.spin=1;scene.add(m);collectibles.push(m)}
+function reset(){for(const o of obstacles)scene.remove(o);for(const o of collectibles)scene.remove(o);obstacles.length=0;collectibles.length=0;score=0;shards=0;speed=.55;spawn=0;phaseTime=0;bike.position.set(0,0,0);bike.rotation.set(0,0,0);document.querySelector('#distance').textContent='0000';document.querySelector('#shards').textContent='0'}
+function start(){reset();running=true;document.querySelector('#overlay').style.display='none';last=performance.now()}
+function end(){running=false;best=Math.max(best,Math.floor(score));localStorage.setItem('riftBest',best);document.querySelector('#best').textContent=String(best).padStart(4,'0');document.querySelector('#message').textContent='The rift got you. You travelled '+Math.floor(score)+' metres and collected '+shards+' shards. Ready for another run?';document.querySelector('#start').textContent='TRY AGAIN';document.querySelector('#overlay').style.display='grid'}
+document.querySelector('#start').onclick=start;
+function update(dt){const steer=(keys.ArrowRight||keys.KeyD?1:0)-(keys.ArrowLeft||keys.KeyA?1:0);bike.position.x=THREE.MathUtils.damp(bike.position.x,steer*5.7,.1,dt*60);bike.position.x=THREE.MathUtils.clamp(bike.position.x,-6,6);bike.rotation.z=THREE.MathUtils.damp(bike.rotation.z,-steer*.28,.12,dt*60);bike.position.y=.06+Math.sin(performance.now()*.004)*.08;
+const boosting=keys.ArrowUp||keys.KeyW;const phasing=keys.Space;if(phasing&&phaseTime<=0)phaseTime=.75;if(phaseTime>0)phaseTime-=dt;bike.traverse(o=>{if(o.material&&o!==body)o.material.transparent=phaseTime>0,o.material.opacity=phaseTime>0?.35:1});
+speed=Math.min(1.15,.55+score/1800+(boosting?.22:0));score+=speed*dt*35;document.querySelector('#distance').textContent=String(Math.floor(score)).padStart(4,'0');document.querySelector('#shards').textContent=shards;document.querySelector('#sector').textContent=String(1+Math.floor(score/500)).padStart(2,'0');
+spawn-=dt;if(spawn<=0){gate(-100);if(Math.random()>.35)shard(-115);spawn=Math.max(.75,1.65-score/4000)}
+for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i];o.position.z+=speed*dt*34;if(o.position.z>5){scene.remove(o);obstacles.splice(i,1);continue}if(Math.abs(o.position.z)<1.25&&Math.abs(o.position.x-bike.position.x)<8){const lane=o.userData.lane;if(Math.abs(bike.position.x-lane*3.3)>1.35&&phaseTime<=0){end();return}}}
+for(let i=collectibles.length-1;i>=0;i--){const c=collectibles[i];c.position.z+=speed*dt*34;c.rotation.y+=dt*2.5;c.rotation.x+=dt;if(c.position.z>4){scene.remove(c);collectibles.splice(i,1);continue}if(Math.abs(c.position.z)<1.5&&Math.abs(c.position.x-bike.position.x)<1.3){shards++;scene.remove(c);collectibles.splice(i,1)}}
+grid.position.z+=speed*dt*34%2.5;stars.position.z+=speed*dt*2;camera.position.x=THREE.MathUtils.damp(camera.position.x,bike.position.x*.16,.08,dt*60);camera.lookAt(bike.position.x*.12,1,-12);trail.scale.y=boosting?1.7:1}
+function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000||0,.04);last=t;if(running)update(dt);else{bike.position.y=.06+Math.sin(t*.002)*.08;bike.rotation.y=Math.sin(t*.0007)*.08}renderer.render(scene,camera)}requestAnimationFrame(loop);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>
